@@ -11,44 +11,7 @@ class BarangController extends Controller
      */
     protected function dataAwal(): array
     {
-        return [
-            'BRG-001' => [
-                'kode' => 'BRG-001',
-                'nama' => 'Laptop ASUS ROG Zephyrus',
-                'kategori' => 'Elektronik',
-                'lokasi' => 'Lab Komputer 1',
-                'jumlah' => 12,
-                'kondisi' => 'Baik',
-                'deskripsi' => 'Laptop spesifikasi tinggi untuk praktikum grafika dan komputasi lanjut.',
-            ],
-            'BRG-002' => [
-                'kode' => 'BRG-002',
-                'nama' => 'Proyektor Epson EB-X500',
-                'kategori' => 'Elektronik',
-                'lokasi' => 'Ruang Teori 302',
-                'jumlah' => 3,
-                'kondisi' => 'Baik',
-                'deskripsi' => 'Proyektor 3600 lumens untuk presentasi perkuliahan.',
-            ],
-            'BRG-003' => [
-                'kode' => 'BRG-003',
-                'nama' => 'Kursi Kerja Ergonomis',
-                'kategori' => 'Furniture',
-                'lokasi' => 'Ruang Dosen TI',
-                'jumlah' => 25,
-                'kondisi' => 'Baik',
-                'deskripsi' => 'Kursi hidrolik dengan sandaran jaring mesh fleksibel.',
-            ],
-            'BRG-004' => [
-                'kode' => 'BRG-004',
-                'nama' => 'Switch Cisco Catalyst 24 Port',
-                'kategori' => 'Perangkat Jaringan',
-                'lokasi' => 'Server Room Gedung A',
-                'jumlah' => 2,
-                'kondisi' => 'Rusak Ringan',
-                'deskripsi' => 'Port 7 dan 8 tidak menyala, menunggu jadwal perbaikan teknisi.',
-            ],
-        ];
+        return [];
     }
 
     /**
@@ -56,9 +19,6 @@ class BarangController extends Controller
      */
     protected function ambilSemua(): array
     {
-        if (!session()->has('data_barang')) {
-            session()->put('data_barang', $this->dataAwal());
-        }
         return session()->get('data_barang', []);
     }
 
