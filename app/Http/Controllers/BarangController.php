@@ -9,10 +9,10 @@ class BarangController extends Controller
     /**
      * Data awal default untuk inisialisasi session jika masih kosong.
      */
-    protected function getInitialData(): array
+    protected function dataAwal(): array
     {
         return [
-            [
+            'BRG-001' => [
                 'kode' => 'BRG-001',
                 'nama' => 'Laptop ASUS ROG Zephyrus',
                 'kategori' => 'Elektronik',
@@ -21,7 +21,7 @@ class BarangController extends Controller
                 'kondisi' => 'Baik',
                 'deskripsi' => 'Laptop spesifikasi tinggi untuk praktikum grafika dan komputasi lanjut.',
             ],
-            [
+            'BRG-002' => [
                 'kode' => 'BRG-002',
                 'nama' => 'Proyektor Epson EB-X500',
                 'kategori' => 'Elektronik',
@@ -30,7 +30,7 @@ class BarangController extends Controller
                 'kondisi' => 'Baik',
                 'deskripsi' => 'Proyektor 3600 lumens untuk presentasi perkuliahan.',
             ],
-            [
+            'BRG-003' => [
                 'kode' => 'BRG-003',
                 'nama' => 'Kursi Kerja Ergonomis',
                 'kategori' => 'Furniture',
@@ -39,7 +39,7 @@ class BarangController extends Controller
                 'kondisi' => 'Baik',
                 'deskripsi' => 'Kursi hidrolik dengan sandaran jaring mesh fleksibel.',
             ],
-            [
+            'BRG-004' => [
                 'kode' => 'BRG-004',
                 'nama' => 'Switch Cisco Catalyst 24 Port',
                 'kategori' => 'Perangkat Jaringan',
@@ -52,22 +52,84 @@ class BarangController extends Controller
     }
 
     /**
-     * Mengambil daftar barang dari session.
+     * Mengambil semua data barang dari session.
      */
-    protected function getItemsFromSession(): array
+    protected function ambilSemua(): array
     {
         if (!session()->has('data_barang')) {
-            session()->put('data_barang', $this->getInitialData());
+            session()->put('data_barang', $this->dataAwal());
         }
         return session()->get('data_barang', []);
     }
 
     /**
-     * Menyimpan kembali daftar barang ke session.
+     * Menyimpan seluruh data barang ke session.
      */
-    protected function saveItemsToSession(array $items): void
+    protected function simpanSemua(array $semua): void
     {
-        session()->put('data_barang', array_values($items));
+        session()->put('data_barang', $semua);
+    }
+
+    /**
+     * Mencari satu data barang berdasarkan kode.
+     */
+    protected function cari(string $kode): ?array
+    {
+        $semua = $this->ambilSemua();
+        $kode = strtoupper($kode);
+        return $semua[$kode] ?? null;
+    }
+
+    /**
+     * Membentuk array data barang terstruktur.
+     */
+    protected function susunBarang(string $kode, array $input): array
+    {
+        return [
+            'kode' => strtoupper($kode),
+            'nama' => trim($input['nama']),
+            'kategori' => $input['kategori'],
+            'lokasi' => trim($input['lokasi']),
+            'jumlah' => (int) $input['jumlah'],
+            'kondisi' => $input['kondisi'],
+            'deskripsi' => trim($input['deskripsi'] ?? '-'),
+        ];
+    }
+
+    /**
+     * Aturan validasi form barang.
+     */
+    protected function aturan(bool $isEdit = false): array
+    {
+        $rules = [
+            'nama' => 'required|string|max:255',
+            'kategori' => 'required|string|max:100',
+            'lokasi' => 'required|string|max:150',
+            'jumlah' => 'required|integer|min:1',
+            'kondisi' => 'required|string|in:Baik,Rusak Ringan,Rusak Berat',
+            'deskripsi' => 'nullable|string',
+        ];
+
+        if (!$isEdit) {
+            $rules['kode'] = 'required|string|max:50';
+        }
+
+        return $rules;
+    }
+
+    /**
+     * Pesan kesalahan kustom untuk validasi.
+     */
+    protected function pesanError(): array
+    {
+        return [
+            'kode.required' => 'Kode barang wajib diisi.',
+            'nama.required' => 'Nama barang wajib diisi.',
+            'kategori.required' => 'Kategori barang wajib dipilih.',
+            'lokasi.required' => 'Lokasi penempatan barang wajib diisi.',
+            'jumlah.required' => 'Jumlah barang wajib diisi angka minimal 1.',
+            'kondisi.required' => 'Kondisi barang wajib dipilih.',
+        ];
     }
 
     /**
@@ -75,7 +137,7 @@ class BarangController extends Controller
      */
     public function index()
     {
-        $items = $this->getItemsFromSession();
+        $items = array_values($this->ambilSemua());
         return view('barang.index', compact('items'));
     }
 
@@ -92,48 +154,23 @@ class BarangController extends Controller
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'kode' => 'required|string|max:50',
-            'nama' => 'required|string|max:255',
-            'kategori' => 'required|string|max:100',
-            'lokasi' => 'required|string|max:150',
-            'jumlah' => 'required|integer|min:1',
-            'kondisi' => 'required|string|in:Baik,Rusak Ringan,Rusak Berat',
-            'deskripsi' => 'nullable|string',
-        ], [
-            'kode.required' => 'Kode barang wajib diisi.',
-            'nama.required' => 'Nama barang wajib diisi.',
-            'kategori.required' => 'Kategori barang wajib dipilih.',
-            'lokasi.required' => 'Lokasi penempatan barang wajib diisi.',
-            'jumlah.required' => 'Jumlah barang wajib diisi angka minimal 1.',
-            'kondisi.required' => 'Kondisi barang wajib dipilih.',
-        ]);
+        $input = $request->validate($this->aturan(), $this->pesanError());
 
-        $items = $this->getItemsFromSession();
+        $kode = strtoupper($input['kode']);
+        $semua = $this->ambilSemua();
 
-        // Validasi keunikan kode barang di session
-        foreach ($items as $item) {
-            if (strtoupper($item['kode']) === strtoupper($validated['kode'])) {
-                return redirect()->back()
-                    ->withInput()
-                    ->withErrors(['kode' => "Barang dengan kode {$validated['kode']} sudah terdaftar!"]);
-            }
+        if (isset($semua[$kode])) {
+            return redirect()->back()
+                ->withInput()
+                ->withErrors(['kode' => "Barang dengan kode {$kode} sudah terdaftar!"]);
         }
 
-        $items[] = [
-            'kode' => strtoupper(trim($validated['kode'])),
-            'nama' => trim($validated['nama']),
-            'kategori' => $validated['kategori'],
-            'lokasi' => trim($validated['lokasi']),
-            'jumlah' => (int) $validated['jumlah'],
-            'kondisi' => $validated['kondisi'],
-            'deskripsi' => trim($validated['deskripsi'] ?? '-'),
-        ];
-
-        $this->saveItemsToSession($items);
+        $semua[$kode] = $this->susunBarang($kode, $input);
+        $this->simpanSemua($semua);
 
         return redirect()->route('barang.index')
-            ->with('success', "Barang [{$validated['kode']}] berhasil ditambahkan!");
+            ->with('status', 'Barang berhasil ditambahkan.')
+            ->with('success', "Barang [{$kode}] berhasil ditambahkan!");
     }
 
     /**
@@ -141,19 +178,11 @@ class BarangController extends Controller
      */
     public function show(string $kode)
     {
-        $items = $this->getItemsFromSession();
-        $barang = null;
-
-        foreach ($items as $item) {
-            if (strtoupper($item['kode']) === strtoupper($kode)) {
-                $barang = $item;
-                break;
-            }
-        }
+        $barang = $this->cari($kode);
 
         if (!$barang) {
             return redirect()->route('barang.index')
-                ->with('error', "Data barang dengan kode '{$kode}' tidak ditemukan.");
+                ->with('error', 'Barang tidak ditemukan.');
         }
 
         return view('barang.show', compact('barang'));
@@ -164,19 +193,11 @@ class BarangController extends Controller
      */
     public function edit(string $kode)
     {
-        $items = $this->getItemsFromSession();
-        $barang = null;
-
-        foreach ($items as $item) {
-            if (strtoupper($item['kode']) === strtoupper($kode)) {
-                $barang = $item;
-                break;
-            }
-        }
+        $barang = $this->cari($kode);
 
         if (!$barang) {
             return redirect()->route('barang.index')
-                ->with('error', "Data barang dengan kode '{$kode}' tidak ditemukan untuk disunting.");
+                ->with('error', 'Barang tidak ditemukan.');
         }
 
         return view('barang.edit', compact('barang'));
@@ -187,45 +208,20 @@ class BarangController extends Controller
      */
     public function update(Request $request, string $kode)
     {
-        $validated = $request->validate([
-            'nama' => 'required|string|max:255',
-            'kategori' => 'required|string|max:100',
-            'lokasi' => 'required|string|max:150',
-            'jumlah' => 'required|integer|min:1',
-            'kondisi' => 'required|string|in:Baik,Rusak Ringan,Rusak Berat',
-            'deskripsi' => 'nullable|string',
-        ], [
-            'nama.required' => 'Nama barang wajib diisi.',
-            'kategori.required' => 'Kategori barang wajib dipilih.',
-            'lokasi.required' => 'Lokasi penempatan barang wajib diisi.',
-            'jumlah.required' => 'Jumlah barang wajib diisi angka minimal 1.',
-            'kondisi.required' => 'Kondisi barang wajib dipilih.',
-        ]);
+        $input = $request->validate($this->aturan(true), $this->pesanError());
+        $semua = $this->ambilSemua();
+        $kode = strtoupper($kode);
 
-        $items = $this->getItemsFromSession();
-        $found = false;
-
-        foreach ($items as $index => $item) {
-            if (strtoupper($item['kode']) === strtoupper($kode)) {
-                $items[$index]['nama'] = trim($validated['nama']);
-                $items[$index]['kategori'] = $validated['kategori'];
-                $items[$index]['lokasi'] = trim($validated['lokasi']);
-                $items[$index]['jumlah'] = (int) $validated['jumlah'];
-                $items[$index]['kondisi'] = $validated['kondisi'];
-                $items[$index]['deskripsi'] = trim($validated['deskripsi'] ?? '-');
-                $found = true;
-                break;
-            }
-        }
-
-        if (!$found) {
+        if (!isset($semua[$kode])) {
             return redirect()->route('barang.index')
-                ->with('error', "Data barang dengan kode '{$kode}' tidak ditemukan.");
+                ->with('error', 'Barang tidak ditemukan.');
         }
 
-        $this->saveItemsToSession($items);
+        $semua[$kode] = $this->susunBarang($kode, $input);
+        $this->simpanSemua($semua);
 
         return redirect()->route('barang.index')
+            ->with('status', 'Data barang berhasil diperbarui.')
             ->with('success', "Data barang [{$kode}] berhasil diperbarui!");
     }
 
@@ -234,26 +230,19 @@ class BarangController extends Controller
      */
     public function destroy(string $kode)
     {
-        $items = $this->getItemsFromSession();
-        $filtered = [];
-        $found = false;
+        $semua = $this->ambilSemua();
+        $kode = strtoupper($kode);
 
-        foreach ($items as $item) {
-            if (strtoupper($item['kode']) === strtoupper($kode)) {
-                $found = true;
-                continue; // dilewati untuk dihapus
-            }
-            $filtered[] = $item;
-        }
-
-        if (!$found) {
+        if (!isset($semua[$kode])) {
             return redirect()->route('barang.index')
-                ->with('error', "Gagal menghapus: data barang dengan kode '{$kode}' tidak ditemukan.");
+                ->with('error', 'Barang tidak ditemukan.');
         }
 
-        $this->saveItemsToSession($filtered);
+        unset($semua[$kode]);
+        $this->simpanSemua($semua);
 
         return redirect()->route('barang.index')
-            ->with('success', "Barang dengan kode [{$kode}] berhasil dihapus dari sistem!");
+            ->with('status', 'Barang berhasil dihapus.')
+            ->with('success', "Barang dengan kode [{$kode}] berhasil dihapus!");
     }
 }
